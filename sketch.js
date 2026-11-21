@@ -24,6 +24,7 @@ let SHEET_W = 1200;
 let SHEET_H = 900;
 let ox = 0;
 let oy = 0;
+let fit = 1;          // shrinks the whole sheet so it always fits the window
 
 let FRAME_W = 675;
 let FRAME_H = 450;
@@ -79,8 +80,14 @@ function windowResized() {
 
 
 function draw() {
-  ox = floor((width - SHEET_W) / 2);
-  oy = floor((height - SHEET_H) / 2);
+  // the sheet is 1200 x 900. on a shorter window it is scaled down to
+  // fit rather than running off the top and bottom.
+  fit = min(width / SHEET_W, height / SHEET_H);
+  if (fit > 1) {
+    fit = 1;
+  }
+  ox = floor((width - SHEET_W * fit) / 2);
+  oy = floor((height - SHEET_H * fit) / 2);
 
   if (cam.width > 0) {
     camReady = true;
@@ -93,8 +100,8 @@ function draw() {
   // get() in the SAME pass, then covered before this frame reaches
   // the screen. the picture is taken. nobody sees it.
   if (flash === 2) {
-    image(cam, ox + FRAME_X, oy + FRAME_Y, FRAME_W, FRAME_H);
-    neg.expose(get(ox + FRAME_X, oy + FRAME_Y, FRAME_W, FRAME_H));
+    image(cam, ox + FRAME_X * fit, oy + FRAME_Y * fit, FRAME_W * fit, FRAME_H * fit);
+    neg.expose(get(ox + FRAME_X * fit, oy + FRAME_Y * fit, FRAME_W * fit, FRAME_H * fit));
     stage = "EXPOSED";
   }
   if (flash > 0) {
@@ -103,6 +110,7 @@ function draw() {
 
   push();
   translate(ox, oy);
+  scale(fit);
 
   drawHeader();
   drawFrame();
@@ -218,7 +226,7 @@ class Dial {
   }
 
   over() {
-    if (dist(mouseX - ox, mouseY - oy, this.x, this.y) < this.r + 16) {
+    if (dist(sheetX(), sheetY(), this.x, this.y) < this.r + 16) {
       return true;
     }
     return false;
@@ -227,7 +235,7 @@ class Dial {
   update() {
     if (mouseIsPressed === true) {
       if (this.over() === true) {
-        this.value = map(mouseX - ox, this.x - 50, this.x + 50, this.lo, this.hi);
+        this.value = map(sheetX(), this.x - 50, this.x + 50, this.lo, this.hi);
         if (this.value < this.lo) {
           this.value = this.lo;
         }
@@ -510,8 +518,8 @@ function drawScanlines() {
 
 function mousePressed() {
   idle = 0;
-  let mx = mouseX - ox;
-  let my = mouseY - oy;
+  let mx = sheetX();
+  let my = sheetY();
 
   if (inside(mx, my, buttonX(0), BTN_Y, BTN_W, BTN_H) === true) {
     if (stage === "STANDBY") {
@@ -545,6 +553,15 @@ function keyPressed() {
   if (key === "r" || key === "R") {
     reset();
   }
+}
+
+// the mouse in sheet coordinates, undoing the translate and the scale
+function sheetX() {
+  return (mouseX - ox) / fit;
+}
+
+function sheetY() {
+  return (mouseY - oy) / fit;
 }
 
 function inside(px, py, x, y, w, h) {
@@ -587,4 +604,3 @@ function twoDigits(n) {
     return "0" + n;
   }
   return "" + n;
-}
